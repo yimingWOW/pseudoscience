@@ -20,7 +20,6 @@ const gasPrice = '356805269843'; // Replace with your desired gas price
 const gasLimit = 22024; // This is the standard gas limit for a simple ETH transfer
 
 
-// Additional data to include in the transaction
 const sendTransaction = async (privateKey, maxAttempts) => {
   // get address by privatekey
   const privateKeyBuffer = Buffer.from(privateKey, 'hex');

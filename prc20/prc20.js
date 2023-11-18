@@ -6,6 +6,7 @@
 
 const { Web3 } = require('web3');
 const ethUtil = require('ethereumjs-util');
+const { ethers } = require('ethers');
 
 // Access command-line arguments
 const args = process.argv.slice(2);
@@ -15,43 +16,44 @@ console.log('transaction num:', args);
 // Use the arguments as needed
 const privateKey = args[0];
 const maxAttempts = args[1];
-
-const gasPrice = '356805269843'; // Replace with your desired gas price
-const gasLimit = 22024; // This is the standard gas limit for a simple ETH transfer
-
+const provider = new ethers.JsonRpcProvider('https://rpc-mainnet.matic.quiknode.pro');
 
 const sendTransaction = async (privateKey, maxAttempts) => {
   // get address by privatekey
   const privateKeyBuffer = Buffer.from(privateKey, 'hex');
-  const address = ethUtil.privateToAddress(privateKeyBuffer).toString('hex');
+  const addr = ethUtil.privateToAddress(privateKeyBuffer).toString('hex');
+  const address = '0x'+addr; 
   console.log('Address:', address);
-  const fromAddress = '0x'+address; 
-  const toAddress = '0x'+address; 
+  const fromAddress = address;
+  const toAddress = address; 
 
-  const additionalData = '0x' + Buffer.from(JSON.stringify({"p":"prc-20","op":"mint","tick":"pols","amt":"100000000"})).toString('hex');
-  const web3 = new Web3('https://rpc-mainnet.maticvigil.com/'); // Use the appropriate RPC endpoint
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
-    const nonce = await web3.eth.getTransactionCount(fromAddress);
+    let nonce = await provider.getTransactionCount(fromAddress);
+    console.log("get nonce:",nonce);
+    let feeData = await provider.getFeeData();
+    console.log("get feeData:",feeData);
+
     const transactionObject = {
+      type: 2,
       from: fromAddress,
       to: toAddress,
-      value: web3.utils.toWei('0.01', 'ether'), // Replace with the amount you want to send
-      gasPrice: gasPrice,
-      gas: gasLimit,
+      value: ethers.parseEther("0.00"), 
+      gasLimit: 22024,
+      maxPriorityFeePerGas: feeData["maxPriorityFeePerGas"], 
+      maxFeePerGas: feeData["maxFeePerGas"], 
       nonce: nonce,
-      data:additionalData,
-    };
-    const signedTransaction = await web3.eth.accounts.signTransaction(transactionObject, privateKey);
+      data: Web3.utils.asciiToHex('data:,{"p":"prc-20","op":"mint","tick":"pols","amt":"100000000"}'),
 
-    const res = web3.eth.sendSignedTransaction(signedTransaction.rawTransaction).once('transactionHash', (hash) => {
-      console.log(`Transaction Hash: ${hash}`);
-    })
-    console.log(res);
+    };
+
+    const signer = new ethers.Wallet(privateKey, provider);
+    const tx = await signer.sendTransaction(transactionObject);
+    console.log(tx);
+
     console.log(`Transaction num: ${attempts}.`);
     console.log('Sleep for 10 seconds');
     await sleep(10000); 
   }    
-
 };
 
 function sleep(ms) {
